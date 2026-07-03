@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+import 'config/supabase_config.dart';
+import 'theme/app_theme.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.anonKey,
+  );
   runApp(const MainApp());
 }
 
@@ -9,10 +18,13 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
+    return MaterialApp(
+      title: 'App-Censo',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      home: const Scaffold(
         body: Center(
-          child: Text('Hello World!'),
+          child: Text('Configuração Base: Supabase e Rotas Prontas'),
         ),
       ),
     );
