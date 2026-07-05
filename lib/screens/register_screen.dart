@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_error_message.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/auth_shell.dart';
@@ -45,9 +46,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.of(context).pop();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Falha no cadastro: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(registerErrorMessage(error))),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_error_message.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/auth_shell.dart';
@@ -40,13 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login realizado com sucesso.')));
+        const SnackBar(content: Text('Login realizado com sucesso.')),
+      );
       Navigator.of(context).pushReplacementNamed(ProfileScreen.routeName);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Falha no login: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(loginErrorMessage(error))),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }

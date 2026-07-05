@@ -22,6 +22,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await _auth.signOut();
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sessao encerrada com sucesso.')),
+      );
       Navigator.of(
         context,
       ).pushNamedAndRemoveUntil(LoginScreen.routeName, (_) => false);

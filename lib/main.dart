@@ -8,6 +8,8 @@ import 'screens/register_screen.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
+final _rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
@@ -23,6 +25,7 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: _rootScaffoldMessengerKey,
       title: 'App-Censo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
