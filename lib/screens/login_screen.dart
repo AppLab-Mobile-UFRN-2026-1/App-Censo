@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/auth_shell.dart';
 import '../widgets/primary_button.dart';
+import 'profile_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -39,8 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login realizado com sucesso.')),
-      );
+        const SnackBar(content: Text('Login realizado com sucesso.')));
+      Navigator.of(context).pushReplacementNamed(ProfileScreen.routeName);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(

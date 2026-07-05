@@ -1,3 +1,4 @@
+import 'package:app_censo/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -30,6 +31,7 @@ class MainApp extends StatelessWidget {
         SplashScreen.routeName: (_) => const SplashScreen(),
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
+        ProfileScreen.routeName: (_) => const ProfileScreen(), 
       },
     );
   }
