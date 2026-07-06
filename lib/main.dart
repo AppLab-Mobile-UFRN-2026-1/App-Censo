@@ -1,17 +1,15 @@
-import 'package:app_censo/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
 import 'screens/login_screen.dart';
 import 'screens/map_screen.dart';
+import 'screens/new_occurrence_screen.dart';
+import 'screens/occurrence_details_screen.dart';
+import 'screens/profile_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
-import 'screens/new_occurrence_screen.dart';
-
-
-final _rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +26,6 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      scaffoldMessengerKey: _rootScaffoldMessengerKey,
       title: 'App-Censo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
@@ -38,8 +35,10 @@ class MainApp extends StatelessWidget {
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
         MapScreen.routeName: (_) => const MapScreen(),
-        ProfileScreen.routeName: (_) => const ProfileScreen(), 
         NewOccurrenceScreen.routeName: (_) => const NewOccurrenceScreen(),
+        OccurrenceDetailsScreen.routeName: (_) =>
+            const OccurrenceDetailsScreen(),
+        ProfileScreen.routeName: (_) => const ProfileScreen(),
       },
     );
   }
