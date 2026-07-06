@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/occurrence.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/occurrence_type_selector.dart';
 import '../widgets/primary_button.dart';
+import '../widgets/photo_capture_field.dart';
 
 class NewOccurrenceScreen extends StatefulWidget {
   const NewOccurrenceScreen({super.key});
@@ -17,10 +19,12 @@ class NewOccurrenceScreen extends StatefulWidget {
 class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _descriptionController = TextEditingController();
+  
 
   OccurrenceType _type = OccurrenceType.request;
   String? _category = OccurrenceOptions.requestCategories.first;
   String? _stage = OccurrenceOptions.workStages.first;
+  XFile? _photo;
 
   @override
   void dispose() {
@@ -30,6 +34,13 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_photo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Capture uma foto do local.')),
+      );
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -77,6 +88,11 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                   return null;
                 },
               ),
+              const SizedBox(height: 14),
+              PhotoCaptureField(
+                photo: _photo,
+                onPhotoCaptured: (photo) => setState(() => _photo = photo),
+              ),    
               const SizedBox(height: 20),
               PrimaryButton(
                 label: 'Salvar registro',
