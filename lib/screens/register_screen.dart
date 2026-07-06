@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/auth_shell.dart';
 import '../widgets/primary_button.dart';
+import 'map_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -43,7 +44,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cadastro realizado com sucesso.')),
       );
-      Navigator.of(context).pop();
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(MapScreen.routeName, (_) => false);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'map_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -22,9 +23,11 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _redirect() async {
-    await _auth.hasRecoveredSession();
+    final hasSession = await _auth.hasRecoveredSession();
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
+    Navigator.of(context).pushReplacementNamed(
+      hasSession ? MapScreen.routeName : LoginScreen.routeName,
+    );
   }
 
   @override
