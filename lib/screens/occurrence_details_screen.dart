@@ -3,21 +3,49 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/occurrence.dart';
+import '../services/occurrence_service.dart';
 import '../theme/app_theme.dart';
+import 'new_occurrence_screen.dart';
 
-class OccurrenceDetailsScreen extends StatelessWidget {
+class OccurrenceDetailsScreen extends StatefulWidget {
   const OccurrenceDetailsScreen({super.key});
 
   static const routeName = '/occurrence-details';
+
+  @override
+  State<OccurrenceDetailsScreen> createState() =>
+      _OccurrenceDetailsScreenState();
+}
+
+class _OccurrenceDetailsScreenState extends State<OccurrenceDetailsScreen> {
+  final _occurrenceService = OccurrenceService();
+  bool _deleting = false;
 
   @override
   Widget build(BuildContext context) {
     final occurrence =
         ModalRoute.of(context)!.settings.arguments! as Occurrence;
     final date = DateFormat('dd/MM/yyyy HH:mm').format(occurrence.createdAt);
+    final isOwner = occurrence.userId == _occurrenceService.currentUserId;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhes do ponto')),
+      appBar: AppBar(
+        title: const Text('Detalhes do ponto'),
+        actions: [
+          if (isOwner)
+            IconButton(
+              tooltip: 'Editar',
+              onPressed: _deleting ? null : () => _edit(occurrence),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+          if (isOwner)
+            IconButton(
+              tooltip: 'Excluir',
+              onPressed: _deleting ? null : () => _confirmDelete(occurrence),
+              icon: const Icon(Icons.delete_outline),
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
@@ -81,6 +109,13 @@ class OccurrenceDetailsScreen extends StatelessWidget {
                     label: 'Data',
                     value: date,
                   ),
+                  if (isOwner) ...[
+                    const Divider(height: 28),
+                    Text(
+                      'Este registro foi criado por voce.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -88,6 +123,58 @@ class OccurrenceDetailsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _edit(Occurrence occurrence) async {
+    final changed = await Navigator.of(
+      context,
+    ).pushNamed(NewOccurrenceScreen.routeName, arguments: occurrence);
+    if (!mounted) return;
+    if (changed == true) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
+  Future<void> _confirmDelete(Occurrence occurrence) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir registro?'),
+        content: const Text(
+          'Esta acao remove o ponto do mapa para todos os usuarios.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _deleting = true);
+    try {
+      await _occurrenceService.deleteOccurrence(occurrence);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Registro excluido.')));
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erro ao excluir: $error')));
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
   }
 }
 

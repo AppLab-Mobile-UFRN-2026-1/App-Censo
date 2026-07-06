@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -6,8 +7,8 @@ import '../services/location_service.dart';
 import '../services/occurrence_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/occurrence_type_selector.dart';
-import '../widgets/primary_button.dart';
 import '../widgets/photo_capture_field.dart';
+import '../widgets/primary_button.dart';
 
 class NewOccurrenceScreen extends StatefulWidget {
   const NewOccurrenceScreen({super.key});
@@ -31,19 +32,37 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   double? _latitude;
   double? _longitude;
   Locality? _locality;
+  Occurrence? _editingOccurrence;
+  bool _readArguments = false;
   bool _locating = true;
   bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadLocation();
-  }
 
   @override
   void dispose() {
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_readArguments) return;
+    _readArguments = true;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Occurrence) {
+      _editingOccurrence = args;
+      _type = args.type;
+      _category = args.category ?? OccurrenceOptions.requestCategories.first;
+      _stage = args.stage ?? OccurrenceOptions.workStages.first;
+      _descriptionController.text = args.description;
+      _latitude = args.latitude;
+      _longitude = args.longitude;
+      _locality = Locality(city: args.city, state: args.state);
+      _locating = false;
+    } else {
+      _loadLocation();
+    }
   }
 
   Future<void> _loadLocation() async {
@@ -70,7 +89,9 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_photo == null) {
+    final editingOccurrence = _editingOccurrence;
+
+    if (_photo == null && editingOccurrence == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Capture uma foto do local.')),
       );
@@ -88,22 +109,40 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
 
     setState(() => _saving = true);
     try {
-      await _occurrenceService.createOccurrence(
-        type: _type,
-        description: _descriptionController.text.trim(),
-        status: 'registered',
-        photo: _photo!,
-        latitude: _latitude!,
-        longitude: _longitude!,
-        city: _locality?.city,
-        state: _locality?.state,
-        category: _type == OccurrenceType.request ? _category : null,
-        stage: _type == OccurrenceType.publicWork ? _stage : null,
-      );
+      if (editingOccurrence == null) {
+        await _occurrenceService.createOccurrence(
+          type: _type,
+          description: _descriptionController.text.trim(),
+          status: 'registered',
+          photo: _photo!,
+          latitude: _latitude!,
+          longitude: _longitude!,
+          city: _locality?.city,
+          state: _locality?.state,
+          category: _type == OccurrenceType.request ? _category : null,
+          stage: _type == OccurrenceType.publicWork ? _stage : null,
+        );
+      } else {
+        await _occurrenceService.updateOccurrence(
+          occurrence: editingOccurrence,
+          type: _type,
+          description: _descriptionController.text.trim(),
+          status: editingOccurrence.status,
+          photo: _photo,
+          category: _type == OccurrenceType.request ? _category : null,
+          stage: _type == OccurrenceType.publicWork ? _stage : null,
+        );
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro salvo com sucesso.')),
+        SnackBar(
+          content: Text(
+            editingOccurrence == null
+                ? 'Registro salvo com sucesso.'
+                : 'Registro atualizado com sucesso.',
+          ),
+        ),
       );
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -119,7 +158,11 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo registro')),
+      appBar: AppBar(
+        title: Text(
+          _editingOccurrence == null ? 'Novo registro' : 'Editar registro',
+        ),
+      ),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -154,6 +197,10 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                 },
               ),
               const SizedBox(height: 14),
+              if (_editingOccurrence != null) ...[
+                _CurrentPhotoCard(occurrence: _editingOccurrence!),
+                const SizedBox(height: 14),
+              ],
               PhotoCaptureField(
                 photo: _photo,
                 onPhotoCaptured: (photo) => setState(() => _photo = photo),
@@ -164,11 +211,13 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
                 latitude: _latitude,
                 longitude: _longitude,
                 locality: _locality,
-                onRefresh: _loadLocation,
+                onRefresh: _editingOccurrence == null ? _loadLocation : null,
               ),
               const SizedBox(height: 20),
               PrimaryButton(
-                label: 'Salvar registro',
+                label: _editingOccurrence == null
+                    ? 'Salvar registro'
+                    : 'Atualizar registro',
                 icon: Icons.cloud_upload_outlined,
                 loading: _saving,
                 onPressed: _submit,
@@ -217,6 +266,58 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   }
 }
 
+class _CurrentPhotoCard extends StatelessWidget {
+  const _CurrentPhotoCard({required this.occurrence});
+
+  final Occurrence occurrence;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Foto atual',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: CachedNetworkImage(
+                  imageUrl: occurrence.photoUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    alignment: Alignment.center,
+                    child: const CircularProgressIndicator(),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image_outlined),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Capture uma nova foto somente se quiser substituir a atual.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LocationCard extends StatelessWidget {
   const _LocationCard({
     required this.locating,
@@ -230,7 +331,7 @@ class _LocationCard extends StatelessWidget {
   final double? latitude;
   final double? longitude;
   final Locality? locality;
-  final VoidCallback onRefresh;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
