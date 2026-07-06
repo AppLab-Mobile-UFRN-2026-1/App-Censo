@@ -8,6 +8,8 @@ import '../services/occurrence_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
 import 'profile_screen.dart';
+import 'new_occurrence_screen.dart';
+
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -71,6 +73,15 @@ class _MapScreenState extends State<MapScreen> {
       return LatLng(position.latitude, position.longitude);
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<void> _openNewOccurrence() async {
+    final created = await Navigator.of(
+      context,
+    ).pushNamed(NewOccurrenceScreen.routeName);
+    if (created == true) {
+      await _load();
     }
   }
 
@@ -149,9 +160,7 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cadastro em desenvolvimento.')),
-        ),
+        onPressed: _openNewOccurrence,
         icon: const Icon(Icons.add_location_alt_outlined),
         label: const Text('Novo registro'),
       ),

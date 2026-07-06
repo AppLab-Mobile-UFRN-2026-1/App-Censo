@@ -8,6 +8,8 @@ import 'screens/map_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
+import 'screens/new_occurrence_screen.dart';
+
 
 final _rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -37,6 +39,7 @@ class MainApp extends StatelessWidget {
         RegisterScreen.routeName: (_) => const RegisterScreen(),
         MapScreen.routeName: (_) => const MapScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(), 
+        NewOccurrenceScreen.routeName: (_) => const NewOccurrenceScreen(),
       },
     );
   }
