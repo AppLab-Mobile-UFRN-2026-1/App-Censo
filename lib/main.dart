@@ -6,6 +6,7 @@ import 'screens/login_screen.dart';
 import 'screens/map_screen.dart';
 import 'screens/new_occurrence_screen.dart';
 import 'screens/occurrence_details_screen.dart';
+import 'screens/occurrences_list_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/splash_screen.dart';
@@ -38,6 +39,7 @@ class MainApp extends StatelessWidget {
         NewOccurrenceScreen.routeName: (_) => const NewOccurrenceScreen(),
         OccurrenceDetailsScreen.routeName: (_) =>
             const OccurrenceDetailsScreen(),
+        OccurrencesListScreen.routeName: (_) => const OccurrencesListScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(),
       },
     );

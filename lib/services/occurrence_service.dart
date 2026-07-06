@@ -23,10 +23,51 @@ class OccurrenceService {
     return _parseOccurrences(rows);
   }
 
+  Future<List<Occurrence>> fetchOccurrencesPage({
+    required int page,
+    required int pageSize,
+    OccurrenceType? type,
+    String? search,
+  }) async {
+    final from = page * pageSize;
+    final to = from + pageSize - 1;
+    final cleanSearch = search?.trim();
+
+    var query = _client.from(_table).select();
+
+    if (type != null) {
+      query = query.eq('type', type.value);
+    }
+
+    if (cleanSearch != null && cleanSearch.isNotEmpty) {
+      final escapedSearch = _escapePostgrestPattern(cleanSearch);
+      query = query.or(
+        'description.ilike.%$escapedSearch%,city.ilike.%$escapedSearch%,state.ilike.%$escapedSearch%,category.ilike.%$escapedSearch%,stage.ilike.%$escapedSearch%',
+      );
+    }
+
+    final rows = await query
+        .order('created_at', ascending: false)
+        .range(from, to);
+
+    return _parseOccurrences(rows);
+  }
+
   List<Occurrence> _parseOccurrences(List<dynamic> rows) {
     return rows
         .map((row) => Occurrence.fromMap(Map<String, dynamic>.from(row as Map)))
         .toList();
+  }
+
+  String _escapePostgrestPattern(String value) {
+    return value
+        .replaceAll('\\', '\\\\')
+        .replaceAll('%', '\\%')
+        .replaceAll('_', '\\_')
+        .replaceAll(',', ' ')
+        .replaceAll('(', ' ')
+        .replaceAll(')', ' ')
+        .trim();
   }
 
   Future<Occurrence> createOccurrence({
