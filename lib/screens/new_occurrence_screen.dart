@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/occurrence.dart';
 import '../services/location_service.dart';
 import '../services/occurrence_service.dart';
+import '../services/preferences_service.dart';
 import '../widgets/app_text_field.dart';
 import '../widgets/occurrence_type_selector.dart';
 import '../widgets/photo_capture_field.dart';
@@ -24,6 +25,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
   final _descriptionController = TextEditingController();
   final _locationService = LocationService();
   final _occurrenceService = OccurrenceService();
+  final _preferences = PreferencesService();
 
   OccurrenceType _type = OccurrenceType.request;
   String? _category = OccurrenceOptions.requestCategories.first;
@@ -61,8 +63,15 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
       _locality = Locality(city: args.city, state: args.state);
       _locating = false;
     } else {
+      _restorePreferences();
       _loadLocation();
     }
+  }
+
+  Future<void> _restorePreferences() async {
+    final type = await _preferences.getLastOccurrenceType();
+    if (!mounted) return;
+    setState(() => _type = type);
   }
 
   Future<void> _loadLocation() async {
@@ -109,6 +118,7 @@ class _NewOccurrenceScreenState extends State<NewOccurrenceScreen> {
 
     setState(() => _saving = true);
     try {
+      await _preferences.setLastOccurrenceType(_type);
       if (editingOccurrence == null) {
         await _occurrenceService.createOccurrence(
           type: _type,
