@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -23,11 +26,33 @@ class OccurrenceService {
     return _parseOccurrences(rows);
   }
 
+  Future<List<Occurrence>> fetchOccurrencesInBounds({
+    required double minLatitude,
+    required double maxLatitude,
+    required double minLongitude,
+    required double maxLongitude,
+    int limit = 250,
+  }) async {
+    final rows = await _client
+        .from(_table)
+        .select()
+        .gte('latitude', minLatitude)
+        .lte('latitude', maxLatitude)
+        .gte('longitude', minLongitude)
+        .lte('longitude', maxLongitude)
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    return _parseOccurrences(rows);
+  }
+
   Future<List<Occurrence>> fetchOccurrencesPage({
     required int page,
     required int pageSize,
     OccurrenceType? type,
     String? search,
+    LatLng? center,
+    double? radiusKm,
   }) async {
     final from = page * pageSize;
     final to = from + pageSize - 1;
@@ -46,11 +71,32 @@ class OccurrenceService {
       );
     }
 
+    if (center != null && radiusKm != null) {
+      final bounds = GeoBounds.fromCenter(center, radiusKm);
+      query = query
+          .gte('latitude', bounds.minLatitude)
+          .lte('latitude', bounds.maxLatitude)
+          .gte('longitude', bounds.minLongitude)
+          .lte('longitude', bounds.maxLongitude);
+    }
+
     final rows = await query
         .order('created_at', ascending: false)
         .range(from, to);
 
-    return _parseOccurrences(rows);
+    final occurrences = _parseOccurrences(rows);
+    if (center == null || radiusKm == null) {
+      return occurrences;
+    }
+
+    const distance = Distance();
+    return occurrences
+        .where(
+          (occurrence) =>
+              distance.as(LengthUnit.Kilometer, center, occurrence.point) <=
+              radiusKm,
+        )
+        .toList();
   }
 
   List<Occurrence> _parseOccurrences(List<dynamic> rows) {
@@ -180,5 +226,33 @@ class OccurrenceService {
         );
 
     return _client.storage.from(_bucket).getPublicUrl(path);
+  }
+}
+
+class GeoBounds {
+  const GeoBounds({
+    required this.minLatitude,
+    required this.maxLatitude,
+    required this.minLongitude,
+    required this.maxLongitude,
+  });
+
+  final double minLatitude;
+  final double maxLatitude;
+  final double minLongitude;
+  final double maxLongitude;
+
+  factory GeoBounds.fromCenter(LatLng center, double radiusKm) {
+    final latitudeDelta = radiusKm / 111.0;
+    final latitudeRadians = center.latitude * math.pi / 180;
+    final longitudeKm = 111.0 * math.cos(latitudeRadians).abs().clamp(0.2, 1.0);
+    final longitudeDelta = radiusKm / longitudeKm;
+
+    return GeoBounds(
+      minLatitude: center.latitude - latitudeDelta,
+      maxLatitude: center.latitude + latitudeDelta,
+      minLongitude: center.longitude - longitudeDelta,
+      maxLongitude: center.longitude + longitudeDelta,
+    );
   }
 }

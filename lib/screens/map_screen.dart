@@ -7,9 +7,10 @@ import '../services/location_service.dart';
 import '../services/occurrence_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/empty_state.dart';
-import 'profile_screen.dart';
 import 'new_occurrence_screen.dart';
-
+import 'occurrence_details_screen.dart';
+import 'occurrences_list_screen.dart';
+import 'profile_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -28,6 +29,7 @@ class _MapScreenState extends State<MapScreen> {
   List<Occurrence> _occurrences = [];
   LatLng? _currentPoint;
   double _zoom = 13;
+  _MapLayer _layer = _MapLayer.street;
   bool _loading = true;
   String? _error;
 
@@ -47,7 +49,14 @@ class _MapScreenState extends State<MapScreen> {
 
     try {
       final currentPoint = await _loadCurrentPoint();
-      final occurrences = await _occurrenceService.fetchOccurrences();
+      final searchCenter = currentPoint ?? _fallbackCenter;
+      final bounds = GeoBounds.fromCenter(searchCenter, 20);
+      final occurrences = await _occurrenceService.fetchOccurrencesInBounds(
+        minLatitude: bounds.minLatitude,
+        maxLatitude: bounds.maxLatitude,
+        minLongitude: bounds.minLongitude,
+        maxLongitude: bounds.maxLongitude,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -85,14 +94,34 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  Future<void> _openDetails(Occurrence occurrence) async {
+    final changed = await Navigator.of(
+      context,
+    ).pushNamed(OccurrenceDetailsScreen.routeName, arguments: occurrence);
+    if (changed == true) {
+      await _load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final center = _currentPoint ?? _fallbackCenter;
+    final currentUserId = _occurrenceService.currentUserId;
+    final ownCount = _occurrences
+        .where((occurrence) => occurrence.userId == currentUserId)
+        .length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mapa de ocorrencias'),
         actions: [
+          IconButton(
+            tooltip: 'Lista',
+            onPressed: () => Navigator.of(
+              context,
+            ).pushNamed(OccurrencesListScreen.routeName),
+            icon: const Icon(Icons.format_list_bulleted_outlined),
+          ),
           IconButton(
             tooltip: 'Atualizar',
             onPressed: _loading ? null : _load,
@@ -118,7 +147,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: _layer.urlTemplate,
                 userAgentPackageName: 'com.applab.app_censo',
               ),
               MarkerLayer(
@@ -136,9 +165,21 @@ class _MapScreenState extends State<MapScreen> {
               const RichAttributionWidget(
                 attributions: [
                   TextSourceAttribution('OpenStreetMap contributors'),
+                  TextSourceAttribution('Esri World Imagery'),
                 ],
               ),
             ],
+          ),
+          Positioned(
+            right: 12,
+            top: 12,
+            child: _MapControls(
+              layer: _layer,
+              onZoomIn: () => _changeZoom(1),
+              onZoomOut: () => _changeZoom(-1),
+              onCenter: _centerOnUser,
+              onLayerChanged: (layer) => setState(() => _layer = layer),
+            ),
           ),
           if (_loading)
             const Positioned(
@@ -153,6 +194,8 @@ class _MapScreenState extends State<MapScreen> {
             bottom: 18,
             child: _MapSummary(
               count: _occurrences.length,
+              ownCount: ownCount,
+              areaKm: 20,
               error: _error,
               onRetry: _load,
             ),
@@ -167,6 +210,18 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  void _changeZoom(double delta) {
+    _zoom = (_zoom + delta).clamp(3, 18);
+    _mapController.move(_mapController.camera.center, _zoom);
+  }
+
+  void _centerOnUser() {
+    final point = _currentPoint;
+    if (point == null) return;
+    _zoom = 15;
+    _mapController.move(point, _zoom);
+  }
+
   Marker _buildOccurrenceMarker(Occurrence occurrence) {
     final color = occurrence.type == OccurrenceType.request
         ? Theme.of(context).colorScheme.tertiary
@@ -176,23 +231,110 @@ class _MapScreenState extends State<MapScreen> {
       point: occurrence.point,
       width: 48,
       height: 48,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 10,
-              offset: Offset(0, 4),
-              color: Color(0x33000000),
+      child: GestureDetector(
+        onTap: () => _openDetails(occurrence),
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 10,
+                offset: Offset(0, 4),
+                color: Color(0x33000000),
+              ),
+            ],
+          ),
+          child: Icon(
+            occurrence.type == OccurrenceType.request
+                ? Icons.report_problem_outlined
+                : Icons.construction_outlined,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _MapLayer {
+  street(
+    'Ruas',
+    Icons.map_outlined,
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  ),
+  satellite(
+    'Satelite',
+    Icons.satellite_alt_outlined,
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  );
+
+  const _MapLayer(this.label, this.icon, this.urlTemplate);
+
+  final String label;
+  final IconData icon;
+  final String urlTemplate;
+}
+
+class _MapControls extends StatelessWidget {
+  const _MapControls({
+    required this.layer,
+    required this.onZoomIn,
+    required this.onZoomOut,
+    required this.onCenter,
+    required this.onLayerChanged,
+  });
+
+  final _MapLayer layer;
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+  final VoidCallback onCenter;
+  final ValueChanged<_MapLayer> onLayerChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Aproximar',
+              onPressed: onZoomIn,
+              icon: const Icon(Icons.add),
+            ),
+            IconButton(
+              tooltip: 'Afastar',
+              onPressed: onZoomOut,
+              icon: const Icon(Icons.remove),
+            ),
+            IconButton(
+              tooltip: 'Minha localizacao',
+              onPressed: onCenter,
+              icon: const Icon(Icons.my_location_outlined),
+            ),
+            PopupMenuButton<_MapLayer>(
+              tooltip: 'Camada do mapa',
+              initialValue: layer,
+              icon: Icon(layer.icon),
+              onSelected: onLayerChanged,
+              itemBuilder: (context) => _MapLayer.values
+                  .map(
+                    (item) => PopupMenuItem(
+                      value: item,
+                      child: Row(
+                        children: [
+                          Icon(item.icon, size: 18),
+                          const SizedBox(width: 10),
+                          Text(item.label),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ],
-        ),
-        child: Icon(
-          occurrence.type == OccurrenceType.request
-              ? Icons.report_problem_outlined
-              : Icons.construction_outlined,
-          color: Colors.white,
         ),
       ),
     );
@@ -224,11 +366,15 @@ class _CurrentLocationMarker extends StatelessWidget {
 class _MapSummary extends StatelessWidget {
   const _MapSummary({
     required this.count,
+    required this.ownCount,
+    required this.areaKm,
     required this.error,
     required this.onRetry,
   });
 
   final int count;
+  final int ownCount;
+  final int areaKm;
   final String? error;
   final VoidCallback onRetry;
 
@@ -253,9 +399,19 @@ class _MapSummary extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                count == 1 ? '1 ponto no mapa' : '$count pontos no mapa',
-                style: const TextStyle(fontWeight: FontWeight.w900),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    count == 1 ? '1 ponto no mapa' : '$count pontos no mapa',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  Text(
+                    '${ownCount == 1 ? '1 registro seu' : '$ownCount registros seus'} - raio ${areaKm}km',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
             ),
             TextButton.icon(
